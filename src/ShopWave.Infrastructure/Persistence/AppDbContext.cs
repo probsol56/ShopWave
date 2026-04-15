@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using ShopWave.Application.Common.Interfaces;
 using ShopWave.Domain.Common;
@@ -25,12 +26,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         // Global query filters for multi-tenancy.
         // ResolvedTenantId returns Guid.Empty (never throws) when no tenant is set (e.g. public
         // endpoints like /register). In that case the filter is a no-op and all rows are visible.
-        modelBuilder.Entity<User>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
-        modelBuilder.Entity<Shop>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
-        modelBuilder.Entity<Category>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
-        modelBuilder.Entity<Product>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
-        modelBuilder.Entity<StockEntry>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
-        modelBuilder.Entity<SaleOrder>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+       ApplyTenantFilters(modelBuilder);
+    }
+
+    private void ApplyTenantFilters(ModelBuilder modelBuilder)
+    {
+        var tenantEntityTypes = modelBuilder.Model
+            .GetEntityTypes()
+            .Where(t => typeof(ITenantEntity).IsAssignableFrom(t.ClrType));
+
+        foreach (var entityType in tenantEntityTypes)
+        {
+            var param = Expression.Parameter(entityType.ClrType, "e");
+            var tenantIdProp = Expression.Property(param, nameof(ITenantEntity.TenantId));
+
+            // e.TenantId == tenantContext.ResolvedTenantId
+            var resolvedId = Expression.Constant(tenantContext.ResolvedTenantId);
+            var tenantMatch = Expression.Equal(tenantIdProp, resolvedId);
+
+            // tenantContext.ResolvedTenantId == Guid.Empty || ...
+            var isEmpty = Expression.Equal(resolvedId, Expression.Constant(Guid.Empty));
+            var filter = Expression.OrElse(isEmpty, tenantMatch);
+
+            modelBuilder.Entity(entityType.ClrType)
+                .HasQueryFilter(Expression.Lambda(filter, param));
+        }
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -39,6 +59,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         {
             if (entry.State == EntityState.Added)
             {
+                entry.Entity.CreatedAt = DateTime.UtcNow;
                 entry.Entity.CreatedBy = currentUserService.UserId;
             }
             else if (entry.State == EntityState.Modified)
