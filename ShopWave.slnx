@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShopWave.API/ShopWave.API.csproj" />
+    <Project Path="src/ShopWave.Application/ShopWave.Application.csproj" />
+    <Project Path="src/ShopWave.Domain/ShopWave.Domain.csproj" />
+    <Project Path="src/ShopWave.Infrastructure/ShopWave.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShopWave.UnitTests/ShopWave.UnitTests.csproj" />
+  </Folder>
+</Solution>

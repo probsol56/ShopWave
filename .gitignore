@@ -1,0 +1,53 @@
+# Build output
+bin/
+obj/
+out/
+
+# .NET
+*.user
+*.suo
+.vs/
+*.userprefs
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Secrets — never commit
+appsettings.Production.json
+**/secrets.json
+
+# EF Core migrations temp
+*.mdf
+*.ldf
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+.cache/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml

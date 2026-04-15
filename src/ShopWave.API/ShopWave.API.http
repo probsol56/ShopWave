@@ -1,0 +1,6 @@
+@ShopWave.API_HostAddress = http://localhost:5038
+
+GET {{ShopWave.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
