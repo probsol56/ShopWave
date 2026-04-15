@@ -23,12 +23,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // Global query filters for multi-tenancy
-        modelBuilder.Entity<User>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Shop>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Category>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Product>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<StockEntry>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<SaleOrder>().HasQueryFilter(e => e.TenantId == tenantContext.TenantId);
+        // When no tenant is resolved (e.g. public endpoints like /register), the filter
+        // is skipped so the query runs without a tenant constraint.
+        modelBuilder.Entity<User>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<Shop>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<Category>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<Product>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<StockEntry>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<SaleOrder>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -46,11 +48,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
             }
         }
 
-        // Auto-set TenantId on new entities
-        foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
+        // Auto-set TenantId on new entities (only when a tenant is resolved)
+        if (tenantContext.IsResolved)
         {
-            if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
-                entry.Entity.TenantId = tenantContext.TenantId;
+            foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
+            {
+                if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
+                    entry.Entity.TenantId = tenantContext.TenantId;
+            }
         }
 
         return await base.SaveChangesAsync(cancellationToken);

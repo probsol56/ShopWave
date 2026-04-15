@@ -15,7 +15,10 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
     {
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
 
-        if (_publicPaths.Contains(path) || path.StartsWith("/swagger"))
+        if (_publicPaths.Contains(path)
+            || path.StartsWith("/swagger")
+            || path.StartsWith("/scalar")
+            || path.StartsWith("/openapi"))
         {
             await next(context);
             return;

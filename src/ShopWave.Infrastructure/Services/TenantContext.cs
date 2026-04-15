@@ -6,6 +6,8 @@ public class TenantContext : ITenantContext
 {
     private Guid _tenantId;
 
+    public bool IsResolved => _tenantId != Guid.Empty;
+
     public Guid TenantId
     {
         get => _tenantId == Guid.Empty

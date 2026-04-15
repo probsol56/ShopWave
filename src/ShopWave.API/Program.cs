@@ -57,7 +57,18 @@ try
 
     app.MapControllers();
 
+    var urls = app.Urls.Any()
+        ? string.Join(" | ", app.Urls)
+        : "http://localhost:5038";
+
     Log.Information("ShopWave API starting...");
+
+    if (!app.Environment.IsProduction())
+    {
+        Log.Information("📚 Scalar UI  → {Url}/scalar/v1", urls.Split(" | ")[0]);
+        Log.Information("📄 OpenAPI JSON → {Url}/openapi/v1.json", urls.Split(" | ")[0]);
+    }
+
     await app.RunAsync();
 }
 catch (Exception ex)
