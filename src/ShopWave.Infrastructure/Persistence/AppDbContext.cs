@@ -22,15 +22,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // Global query filters for multi-tenancy
-        // When no tenant is resolved (e.g. public endpoints like /register), the filter
-        // is skipped so the query runs without a tenant constraint.
-        modelBuilder.Entity<User>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Shop>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Category>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<Product>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<StockEntry>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
-        modelBuilder.Entity<SaleOrder>().HasQueryFilter(e => !tenantContext.IsResolved || e.TenantId == tenantContext.TenantId);
+        // Global query filters for multi-tenancy.
+        // ResolvedTenantId returns Guid.Empty (never throws) when no tenant is set (e.g. public
+        // endpoints like /register). In that case the filter is a no-op and all rows are visible.
+        modelBuilder.Entity<User>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+        modelBuilder.Entity<Shop>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+        modelBuilder.Entity<Category>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+        modelBuilder.Entity<Product>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+        modelBuilder.Entity<StockEntry>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
+        modelBuilder.Entity<SaleOrder>().HasQueryFilter(e => tenantContext.ResolvedTenantId == Guid.Empty || e.TenantId == tenantContext.ResolvedTenantId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
