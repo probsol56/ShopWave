@@ -1,9 +1,8 @@
-using System.IdentityModel.Tokens.Jwt;
 using ShopWave.Infrastructure.Services;
 
 namespace ShopWave.API.Middleware;
 
-public class TenantResolutionMiddleware(RequestDelegate next)
+public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantResolutionMiddleware> logger)
 {
     private static readonly HashSet<string> _publicPaths =
     [
@@ -22,24 +21,20 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             return;
         }
 
-        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-        if (authHeader?.StartsWith("Bearer ") == true)
+        // UseAuthentication() runs before this middleware and has already validated
+        // the JWT signature, expiry, issuer, and audience. Read from the validated claims
+        // instead of re-parsing the raw token.
+        var tenantIdStr = context.User.FindFirst("tenantId")?.Value;
+        if (!Guid.TryParse(tenantIdStr, out var tenantId))
         {
-            var token = authHeader["Bearer ".Length..].Trim();
-            try
-            {
-                var handler = new JwtSecurityTokenHandler();
-                var jwt = handler.ReadJwtToken(token);
-                var tenantIdStr = jwt.Claims.FirstOrDefault(c => c.Type == "tenantId")?.Value;
-                if (Guid.TryParse(tenantIdStr, out var tenantId))
-                    tenantContext.SetTenantId(tenantId);
-            }
-            catch
-            {
-                // Let the auth middleware handle invalid tokens
-            }
+            logger.LogWarning("Authenticated JWT has missing or invalid tenantId claim. Path: {Path}", path);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("""{"status":401,"message":"Tenant could not be resolved from token."}""");
+            return;
         }
 
+        tenantContext.SetTenantId(tenantId);
         await next(context);
     }
 }

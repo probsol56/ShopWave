@@ -20,7 +20,7 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // MVC controllers
+    // controllers
     builder.Services.AddControllers();
 
     // OpenAPI (built-in .NET 10) with JWT
