@@ -9,19 +9,33 @@ using ShopWave.Domain.Entities;
 
 namespace ShopWave.Infrastructure.Services;
 
-public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
+public class JwtTokenService : IJwtTokenService
 {
-    private readonly string _secret = configuration["Jwt:Secret"]
-        ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
-    private readonly string _issuer = configuration["Jwt:Issuer"] ?? "ShopWave";
-    private readonly string _audience = configuration["Jwt:Audience"] ?? "ShopWave";
-    private readonly int _expiryMinutes = int.TryParse(configuration["Jwt:ExpiryMinutes"], out var m) ? m : 60;
+    private readonly string _issuer;
+    private readonly string _audience;
+    private readonly SymmetricSecurityKey _signingKey;
+    private readonly SigningCredentials _signingCredentials;
+    private static readonly JwtSecurityTokenHandler TokenHandler = new();
+
+    public int ExpiryMinutes { get; }
+    public int RefreshTokenExpiryDays { get; }
+
+    public JwtTokenService(IConfiguration configuration)
+    {
+        var secret = configuration["Jwt:Secret"]
+            ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+        _issuer = configuration["Jwt:Issuer"] ?? "ShopWave";
+        _audience = configuration["Jwt:Audience"] ?? "ShopWave";
+        ExpiryMinutes = int.TryParse(configuration["Jwt:ExpiryMinutes"], out var m) ? m : 60;
+        RefreshTokenExpiryDays = int.TryParse(configuration["Jwt:RefreshTokenExpiryDays"], out var d) ? d : 30;
+
+        _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+        _signingCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256);
+    }
 
     public string GenerateAccessToken(User user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -35,39 +49,37 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             issuer: _issuer,
             audience: _audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_expiryMinutes),
-            signingCredentials: credentials);
+            expires: DateTime.UtcNow.AddMinutes(ExpiryMinutes),
+            signingCredentials: _signingCredentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return TokenHandler.WriteToken(token);
     }
 
     public string GenerateRefreshToken()
     {
         var bytes = new byte[64];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(bytes);
+        RandomNumberGenerator.Fill(bytes);
         return Convert.ToBase64String(bytes);
     }
 
     public Guid? GetUserIdFromExpiredToken(string token)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
         var parameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = key,
+            IssuerSigningKey = _signingKey,
             ValidateIssuer = false,
             ValidateAudience = false,
-            ValidateLifetime = false // allow expired
+            ValidateLifetime = false // intentionally allow expired tokens
         };
 
         try
         {
-            var principal = new JwtSecurityTokenHandler().ValidateToken(token, parameters, out _);
+            var principal = TokenHandler.ValidateToken(token, parameters, out _);
             var userIdStr = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
             return Guid.TryParse(userIdStr, out var userId) ? userId : null;
         }
-        catch
+        catch (Exception ex) when (ex is SecurityTokenException or ArgumentException)
         {
             return null;
         }
