@@ -5,7 +5,7 @@ using ShopWave.Domain.Entities;
 
 namespace ShopWave.Infrastructure.Persistence;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext tenantContext)
+public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext tenantContext, ICurrentUserService currentUserService)
     : DbContext(options), IAppDbContext
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -35,8 +35,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     {
         foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
         {
-            if (entry.State == EntityState.Modified)
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedBy = currentUserService.UserId;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
+                entry.Entity.UpdatedBy = currentUserService.UserId;
+            }
         }
 
         // Auto-set TenantId on new entities
