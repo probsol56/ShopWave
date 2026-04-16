@@ -6,6 +6,8 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
 {
     private static readonly HashSet<string> _publicPaths =
     [
+        "/",
+        "/favicon.ico",
         "/api/auth/register",
         "/api/auth/login",
         "/api/auth/refresh"
