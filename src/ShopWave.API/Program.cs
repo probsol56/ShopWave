@@ -45,8 +45,7 @@ try
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
 
-    if (!app.Environment.IsProduction())
-        app.UseOpenApiWithScalar();
+    app.UseOpenApiWithScalar();
 
     app.UseCors();
     app.UseHttpsRedirection();
@@ -63,11 +62,10 @@ try
 
     Log.Information("ShopWave API starting...");
 
-    if (!app.Environment.IsProduction())
-    {
-        Log.Information("📚 Scalar UI  → {Url}/scalar/v1", urls.Split(" | ")[0]);
-        Log.Information("📄 OpenAPI JSON → {Url}/openapi/v1.json", urls.Split(" | ")[0]);
-    }
+    Log.Information("📚 Scalar UI  → {Url}/scalar/v1", urls.Split(" | ")[0]);
+    Log.Information("📄 OpenAPI JSON → {Url}/openapi/v1.json", urls.Split(" | ")[0]);
+
+    app.MapGet("/", () => "ShopWave API is running automatically on Render!");
 
     await app.RunAsync();
 }
