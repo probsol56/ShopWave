@@ -27,6 +27,15 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         // UseAuthentication() runs before this middleware and has already validated
         // the JWT signature, expiry, issuer, and audience. Read from the validated claims
         // instead of re-parsing the raw token.
+        if (context.User.Identity?.IsAuthenticated != true)
+        {
+            logger.LogWarning("Request is not authenticated. Path: {Path}", path);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("""{"status":401,"message":"Invalid or missing token."}""");
+            return;
+        }
+
         var tenantIdStr = context.User.FindFirst("tenantId")?.Value;
         if (!Guid.TryParse(tenantIdStr, out var tenantId))
         {
