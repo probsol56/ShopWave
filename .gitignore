@@ -51,3 +51,6 @@ TestResults/
 coverage/
 *.coverage
 *.coveragexml
+
+# Editor/AI rules
+CLAUDE.md
